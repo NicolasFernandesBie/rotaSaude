@@ -1,0 +1,23 @@
+# Dependências e artefatos
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Banco e ambiente
+*.db
+*.db-journal
+.env.local
+.env.production
+
+# Logs e sistema
+*.log
+nohup.out
+.DS_Store
+
+# Sessao do bot WhatsApp
+.baileys/
+
+# Ambiente
+.env

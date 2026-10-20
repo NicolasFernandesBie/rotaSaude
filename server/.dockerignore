@@ -1,0 +1,7 @@
+node_modules
+dist
+.baileys
+prisma/*.db
+prisma/*.db-journal
+*.log
+.env

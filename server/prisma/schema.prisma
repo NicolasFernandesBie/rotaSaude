@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Patient {
+  id          String     @id @default(cuid())
+  name        String
+  cpf         String?    @unique
+  susCard     String?
+  phone       String
+  birthDate   DateTime?
+  city        String
+  address     String?
+  healthPost  String
+  mobility    String     @default("INDEPENDENTE")
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  referrals   Referral[]
+
+  @@map("patients")
+}
+
+model Referral {
+  id              String         @id @default(cuid())
+  patientId       String
+  patient         Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  kind            String
+  specialty       String?
+  destinationCity String
+  destinationUnit String
+  requestedBy     String?
+  requestedAt     DateTime       @default(now())
+  preferredDate   DateTime?
+  urgency         String
+  status          String         @default("AGUARDANDO_VAGA")
+  queueSince      DateTime       @default(now())
+  notes           String?
+  seat            Seat?
+  notifications   Notification[]
+
+  @@index([status, urgency])
+  @@map("referrals")
+}
+
+model Trip {
+  id              String   @id @default(cuid())
+  departureAt     DateTime
+  originCity      String
+  destinationCity String
+  vehicle         String
+  driver          String
+  phone           String?
+  capacity        Int
+  status          String   @default("PLANEJADA")
+  tripKind        String   @default("IDA")
+  parentTripId    String?  @unique
+  parentTrip      Trip?    @relation("TripPair", fields: [parentTripId], references: [id], onDelete: SetNull)
+  returnTrip      Trip?    @relation("TripPair")
+  notes           String?
+  createdAt       DateTime @default(now())
+  seats           Seat[]
+
+  @@index([departureAt])
+  @@index([parentTripId])
+  @@map("trips")
+}
+
+model Seat {
+  id         String   @id @default(cuid())
+  tripId     String
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  referralId String   @unique
+  referral   Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  number     Int
+  status     String   @default("RESERVADA")
+  createdAt  DateTime @default(now())
+
+  @@unique([tripId, number])
+  @@map("seats")
+}
+
+model Notification {
+  id           String    @id @default(cuid())
+  referralId   String?
+  referral     Referral? @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  channel      String
+  kind         String
+  to           String
+  patientName  String
+  message      String
+  status       String    @default("PENDENTE")
+  scheduledFor DateTime  @default(now())
+  sentAt       DateTime?
+  error        String?
+  externalId   String?
+  createdAt    DateTime  @default(now())
+
+  @@index([status, scheduledFor])
+  @@map("notifications")
+}
+
+model Setting {
+  key   String @id
+  value String
+
+  @@map("settings")
+}
