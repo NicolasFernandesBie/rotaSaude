@@ -2,7 +2,7 @@
 set -e
 
 echo "[rota-saude] aplicando schema no banco..."
-pnpm exec prisma db push --skip-generate
+pnpm exec prisma db push --skip-generate --accept-data-loss
 
 if [ "${SEED_ON_START:-false}" = "true" ] && [ ! -f /data/.seeded ]; then
   echo "[rota-saude] populando base de demonstracao..."

@@ -1,16 +1,16 @@
 import type { FastifyInstance } from "fastify";
-import { db } from "../db";
+import { db } from "../../lib/prisma";
 import {
   REFERRAL_KINDS,
   URGENCIES,
   priorityScore,
-} from "../domain";
+} from "../../lib/domain";
 import {
   buildMessage,
   queueNotification,
   spStartOfDay,
-} from "../notifications";
-import { assignToTrip, referralInclude } from "../assignment";
+} from "../notifications/service";
+import { assignToTrip, referralInclude } from "../trips/assignment";
 
 export async function referralRoutes(app: FastifyInstance) {
   app.get("/api/referrals", async (req) => {

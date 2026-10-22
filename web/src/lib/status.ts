@@ -13,10 +13,7 @@ export const tripStatus: Record<string, { label: string; badge: string }> = {
   CONCLUIDA: { label: "Concluída", badge: "bg-emerald-100 text-emerald-800" },
 };
 
-export const tripKind: Record<string, { label: string; badge: string }> = {
-  IDA: { label: "Ida", badge: "bg-teal-100 text-teal-800" },
-  VOLTA: { label: "Volta", badge: "bg-violet-100 text-violet-800" },
-};
+export { legCities, tripLeg, tripPhase } from "@/features/trips/phases";
 
 export const urgency: Record<string, { label: string; badge: string }> = {
   CRITICA: { label: "Crítica", badge: "bg-rose-600 text-white" },

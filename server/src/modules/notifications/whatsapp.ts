@@ -1,4 +1,4 @@
-import { toWhatsAppNumber } from "./phone";
+import { toWhatsAppNumber } from "../../lib/phone";
 import { checkBaileysNumber, ensureBaileys, getBaileysStatus, sendBaileys } from "./baileys";
 
 export type WhatsAppProviderName = "simulator" | "baileys";

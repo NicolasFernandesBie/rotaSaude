@@ -1,16 +1,16 @@
-import "./env";
+import "./config/env";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { patientRoutes } from "./routes/patients";
-import { referralRoutes } from "./routes/referrals";
-import { tripRoutes } from "./routes/trips";
+import { patientRoutes } from "./modules/patients/routes";
+import { referralRoutes } from "./modules/referrals/routes";
+import { tripRoutes } from "./modules/trips/routes";
 import {
   dashboardRoutes,
   notificationRoutes,
   settingsRoutes,
-} from "./routes/misc";
-import { startNotificationWorker } from "./notifications";
-import { maybeStartWhatsApp } from "./whatsapp";
+} from "./modules/dashboard/routes";
+import { startNotificationWorker } from "./modules/notifications/service";
+import { maybeStartWhatsApp } from "./modules/notifications/whatsapp";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });

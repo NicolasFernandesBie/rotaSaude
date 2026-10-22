@@ -1,6 +1,6 @@
-import { db } from "./db";
-import { priorityScore } from "./domain";
-import { spStartOfDay } from "./notifications";
+import { db } from "../../lib/prisma";
+import { priorityScore } from "../../lib/domain";
+import { spStartOfDay } from "../notifications/service";
 
 type TripForSuggestions = {
   id: string;

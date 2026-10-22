@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { age, daysSince, formatDateTime, formatDate, formatPhone } from "@/lib/format";
 import { mobilityLabels, referralKinds, referralStatus, urgency } from "@/lib/status";
-import type { Patient } from "@/lib/types";
+import type { Patient } from "@/features/patients/types";
 import { useApi } from "@/lib/useApi";
 import {
   Badge,
@@ -14,7 +14,7 @@ import {
   ErrorBox,
   PageHeader,
   Spinner,
-} from "@/lib/ui";
+} from "@/components/ui";
 
 export default function PacienteDetalhePage() {
   const params = useParams<{ id: string }>();

@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { PatientForm, type PatientValues } from "@/components/PatientForm";
+import { PatientForm, type PatientValues } from "@/features/patients/components/PatientForm";
 import { api } from "@/lib/api";
-import type { Patient } from "@/lib/types";
-import { Button, ErrorBox, PageHeader } from "@/lib/ui";
+import type { Patient } from "@/features/patients/types";
+import { Button, ErrorBox, PageHeader } from "@/components/ui";
 
 export default function NovoPacientePage() {
   const router = useRouter();

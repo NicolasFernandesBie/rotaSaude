@@ -3,9 +3,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { api } from "@/lib/api";
-import { CIDADES, CIDADE_DESTINO_PADRAO, CIDADE_ORIGEM_PADRAO, isCidadeValida } from "@/lib/cities";
+import { CIDADES, CIDADE_DESTINO_PADRAO, CIDADE_ORIGEM_PADRAO, isCidadeValida } from "@/config/cities";
 import { showToast } from "@/lib/toast";
-import type { Trip } from "@/lib/types";
+import type { Trip } from "@/features/trips/types";
 import {
   Button,
   Card,
@@ -14,7 +14,7 @@ import {
   PageHeader,
   Spinner,
   inputClass,
-} from "@/lib/ui";
+} from "@/components/ui";
 import { toDatetimeLocal } from "@/lib/format";
 
 const defaultDeparture = () => {
@@ -38,7 +38,6 @@ function NovaViagem() {
     capacity: "8",
     notes: "",
   });
-  const [withReturn, setWithReturn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -54,12 +53,10 @@ function NovaViagem() {
     try {
       const trip = await api<Trip>("/api/trips", {
         method: "POST",
-        body: { ...form, capacity: Number(form.capacity), withReturn },
+        body: { ...form, capacity: Number(form.capacity) },
       });
       showToast({
-        message: withReturn
-          ? "Viagem de ida e volta agendadas. Dê vaga às pessoas da fila."
-          : "Viagem criada. Agora dê vaga às pessoas da fila.",
+        message: "Viagem criada. Dê vaga às pessoas da fila.",
       });
       router.push(`/transportes/${trip.id}`);
     } catch (err) {
@@ -150,23 +147,16 @@ function NovaViagem() {
               />
             </Field>
           </div>
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-teal-200 bg-teal-50 p-3">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-700 focus:ring-teal-500"
-              checked={withReturn}
-              onChange={(e) => setWithReturn(e.target.checked)}
-            />
-            <span>
-              <span className="block text-sm font-semibold text-teal-900">
-                Agendar também a viagem de volta
-              </span>
-              <span className="block text-xs text-teal-700">
-                Cria automaticamente o retorno ({form.destinationCity} → {form.originCity}) no
-                mesmo dia, ~6h após a ida. Quem receber vaga na ida já fica com a volta reservada.
-              </span>
+          <div className="rounded-xl border border-teal-200 bg-teal-50 p-3">
+            <span className="block text-sm font-semibold text-teal-900">
+              A volta faz parte desta viagem
             </span>
-          </label>
+            <span className="block text-xs text-teal-700">
+              A mesma viagem inclui a ida e a volta ({form.destinationCity} → {form.originCity}).
+              O horário da volta é informado ao iniciá-la. Quem não comparecer na ida não segue na
+              volta.
+            </span>
+          </div>
         </Card>
         <div className="mt-4 flex gap-2">
           <Button type="submit" disabled={saving}>

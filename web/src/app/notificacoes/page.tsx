@@ -4,7 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { formatDateTime, formatPhone } from "@/lib/format";
 import { notificationStatus } from "@/lib/status";
-import type { Notification } from "@/lib/types";
+import type { Notification } from "@/features/notifications/types";
 import { useApi } from "@/lib/useApi";
 import {
   Badge,
@@ -15,7 +15,7 @@ import {
   PageHeader,
   Spinner,
   inputClass,
-} from "@/lib/ui";
+} from "@/components/ui";
 
 const tabs = [
   { key: "", label: "Todas" },

@@ -6,17 +6,18 @@ import { Suspense, useState } from "react";
 import { darVaga } from "@/lib/actions";
 import { daysSince, formatDateTime } from "@/lib/format";
 import { referralKinds, referralStatus, urgency } from "@/lib/status";
-import type { Referral } from "@/lib/types";
+import type { Referral } from "@/features/referrals/types";
 import { useApi } from "@/lib/useApi";
 import {
   Badge,
   Button,
   Empty,
   ErrorBox,
+  FilterTabs,
   PageHeader,
+  SearchForm,
   Spinner,
-  inputClass,
-} from "@/lib/ui";
+} from "@/components/ui";
 
 const tabs = [
   { key: "AGUARDANDO_VAGA", label: "Na fila" },
@@ -29,7 +30,6 @@ function Fila() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const status = searchParams.get("status") || "AGUARDANDO_VAGA";
-  const [search, setSearch] = useState("");
   const [term, setTerm] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -55,42 +55,20 @@ function Fila() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => router.push(`/encaminhamentos?status=${tab.key}`)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
-              status === tab.key
-                ? "bg-teal-700 text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            {tab.label}
-            <span className="ml-1.5 tabular-nums opacity-70">
-              {status === tab.key ? lista.length : ""}
-            </span>
-          </button>
-        ))}
-      </div>
+      <FilterTabs
+        options={tabs.map((tab) => ({
+          key: tab.key,
+          label: tab.label,
+          count: status === tab.key ? lista.length : undefined,
+        }))}
+        value={status}
+        onChange={(key) => router.push(`/encaminhamentos?status=${key}`)}
+      />
 
-      <form
-        className="mb-4 flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setTerm(search.trim());
-        }}
-      >
-        <input
-          className={inputClass}
-          placeholder="Buscar por paciente, cidade ou especialidade..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <Button type="submit" variant="secondary">
-          Buscar
-        </Button>
-      </form>
+      <SearchForm
+        placeholder="Buscar por paciente, cidade ou especialidade..."
+        onSubmit={setTerm}
+      />
 
       {loading ? (
         <Spinner />

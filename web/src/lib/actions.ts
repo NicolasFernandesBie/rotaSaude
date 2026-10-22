@@ -1,8 +1,8 @@
 "use client";
 
-import { api } from "./api";
 import { formatDateTime } from "./format";
 import { showToast } from "./toast";
+import { referralsApi } from "@/features/referrals/api";
 
 export async function darVaga(referral: {
   id: string;
@@ -10,10 +10,7 @@ export async function darVaga(referral: {
   patient?: { name: string } | null;
 }): Promise<boolean> {
   try {
-    const result = await api<{ trip: { destinationCity: string; departureAt: string } }>(
-      `/api/referrals/${referral.id}/auto-assign`,
-      { method: "POST", body: {} },
-    );
+    const result = await referralsApi.autoAssign(referral.id);
     const nome = referral.patient?.name.split(" ")[0] || "Paciente";
     showToast({
       message: `Vaga confirmada para ${nome} — ${result.trip.destinationCity}, ${formatDateTime(result.trip.departureAt)}. Aviso enviado.`,

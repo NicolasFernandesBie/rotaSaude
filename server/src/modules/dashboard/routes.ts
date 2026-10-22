@@ -1,16 +1,16 @@
 import type { FastifyInstance } from "fastify";
-import { db } from "../db";
+import { db } from "../../lib/prisma";
 import {
   NOTIFICATION_KIND_META,
   priorityScore,
-} from "../domain";
-import { spStartOfDay } from "../notifications";
-import { isValidPhone } from "../phone";
+} from "../../lib/domain";
+import { spStartOfDay } from "../notifications/service";
+import { isValidPhone } from "../../lib/phone";
 import {
   checkWhatsAppNumber,
   getWhatsAppProviderStatus,
   sendWhatsApp,
-} from "../whatsapp";
+} from "../notifications/whatsapp";
 
 export async function dashboardRoutes(app: FastifyInstance) {
   app.get("/api/dashboard", async () => {
@@ -154,7 +154,7 @@ export async function notificationRoutes(app: FastifyInstance) {
 }
 
 export async function settingsRoutes(app: FastifyInstance) {
-  const { getSettings, setSettings } = await import("../notifications");
+  const { getSettings, setSettings } = await import("../notifications/service");
 
   app.get("/api/settings", async () => getSettings());
 

@@ -1,6 +1,6 @@
-import { db } from "./db";
-import { formatDateTime, formatDate, formatTime } from "./domain";
-import { isValidPhone, normalizePhone, toWhatsAppNumber } from "./phone";
+import { db } from "../../lib/prisma";
+import { formatDateTime, formatDate, formatTime } from "../../lib/domain";
+import { isValidPhone, normalizePhone, toWhatsAppNumber } from "../../lib/phone";
 import { getBaileysStatus } from "./baileys";
 import { getWhatsAppConfig, sendWhatsApp } from "./whatsapp";
 
@@ -30,7 +30,7 @@ export async function setSettings(values: Record<string, string>) {
   return getSettings();
 }
 
-export { isValidPhone, normalizePhone } from "./phone";
+export { isValidPhone, normalizePhone } from "../../lib/phone";
 
 type MessageContext = {
   patientName: string;
@@ -53,7 +53,7 @@ export function buildMessage(kind: string, ctx: MessageContext): string {
     case "CONFIRMACAO":
       return `Olá ${nome}! Sua ${ctx.kindLabel.toLowerCase()} em ${ctx.destinationUnit} (${ctx.destinationCity}) foi CONFIRMADA. Saída em ${saida}, saindo de ${ctx.originCity}, ${transporte}. Compareça 30 minutos antes. Dúvidas: responda esta mensagem.`;
     case "RETORNO_AGENDADO":
-      return `Olá ${nome}! Agendamos também a sua VOLTA de ${ctx.destinationCity} para ${ctx.originCity} no mesmo dia, saindo às ${ctx.departureAt ? formatTime(ctx.departureAt) : ""}. Fique atento ao ponto de encontro combinado com o motorista. Dúvidas: responda esta mensagem.`;
+      return `Olá ${nome}! Sua viagem de ida para ${ctx.destinationCity} também inclui o retorno a ${ctx.originCity} no mesmo transporte, no mesmo dia. O horário da volta será informado no dia do atendimento. Dúvidas: responda esta mensagem.`;
     case "LEMBRETE":
       return `Olá ${nome}, lembramos: sua viagem para ${ctx.destinationCity} sai em ${saida}, ${transporte}. Compareça 30 minutos antes no local de saída.`;
     case "ALTERACAO":

@@ -5,8 +5,9 @@ import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { formatDateTime } from "@/lib/format";
 import { showToast } from "@/lib/toast";
-import type { Referral, Trip } from "@/lib/types";
-import { Badge, Button, Empty, ErrorBox, Modal, Spinner } from "@/lib/ui";
+import type { Referral } from "@/features/referrals/types";
+import type { Trip } from "@/features/trips/types";
+import { Badge, Button, Empty, ErrorBox, Modal, Spinner } from "@/components/ui";
 
 export function AllocateModal({
   referral,

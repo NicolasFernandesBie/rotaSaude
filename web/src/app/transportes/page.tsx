@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatDateTime, formatTime } from "@/lib/format";
-import { tripKind, tripStatus } from "@/lib/status";
-import type { Trip } from "@/lib/types";
+import { legCities, tripPhase } from "@/lib/status";
+import type { Trip } from "@/features/trips/types";
 import { useApi } from "@/lib/useApi";
 import {
   Badge,
@@ -14,31 +14,41 @@ import {
   ErrorBox,
   PageHeader,
   Spinner,
-} from "@/lib/ui";
+} from "@/components/ui";
 
 const filters = [
   { key: "", label: "Todas" },
-  { key: "PLANEJADA", label: "Planejadas" },
-  { key: "EM_ROTA", label: "Em rota" },
-  { key: "CONCLUIDA", label: "Concluídas" },
+  { key: "agendada", label: "Agendadas" },
+  { key: "ida", label: "Ida em rota" },
+  { key: "volta", label: "Volta" },
+  { key: "concluida", label: "Concluídas" },
 ];
+
+function matchFilter(phase: string, filter: string) {
+  if (!filter) return true;
+  if (filter === "agendada") return phase === "IDA_AGENDADA";
+  if (filter === "ida") return phase === "IDA_EM_ROTA" || phase === "IDA_CONCLUIDA";
+  if (filter === "volta") return phase === "VOLTA_EM_ROTA";
+  if (filter === "concluida") return phase === "CONCLUIDA";
+  return true;
+}
 
 export default function TransportesPage() {
   const [status, setStatus] = useState("");
-  const { data, error, loading } = useApi<Trip[]>(
-    `/api/trips${status ? `?status=${status}` : ""}`,
-  );
+  const { data, error, loading } = useApi<Trip[]>(`/api/trips`);
 
   const trips = data || [];
   const now = Date.now();
-  const ordered = [...trips].sort((a, b) => {
-    const aPast = new Date(a.departureAt).getTime() < now ? 1 : 0;
-    const bPast = new Date(b.departureAt).getTime() < now ? 1 : 0;
-    if (aPast !== bPast) return aPast - bPast;
-    return aPast
-      ? new Date(b.departureAt).getTime() - new Date(a.departureAt).getTime()
-      : new Date(a.departureAt).getTime() - new Date(b.departureAt).getTime();
-  });
+  const ordered = [...trips]
+    .filter((t) => matchFilter(t.phase, status))
+    .sort((a, b) => {
+      const aPast = new Date(a.departureAt).getTime() < now ? 1 : 0;
+      const bPast = new Date(b.departureAt).getTime() < now ? 1 : 0;
+      if (aPast !== bPast) return aPast - bPast;
+      return aPast
+        ? new Date(b.departureAt).getTime() - new Date(a.departureAt).getTime()
+        : new Date(a.departureAt).getTime() - new Date(b.departureAt).getTime();
+    });
 
   return (
     <div>
@@ -86,21 +96,16 @@ export default function TransportesPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-lg font-semibold text-slate-900">
-                        {t.originCity} → {t.destinationCity}
+                        {legCities(t).from} → {legCities(t).to}
                       </p>
                       <p className="mt-0.5 text-sm text-slate-600">
                         {formatDateTime(t.departureAt)}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
-                      <Badge className={tripStatus[t.status]?.badge}>
-                        {tripStatus[t.status]?.label}
+                      <Badge className={tripPhase[t.phase]?.badge}>
+                        {tripPhase[t.phase]?.label}
                       </Badge>
-                      {(t.tripKind === "VOLTA" || t.tripKind === "IDA") && (
-                        <Badge className={tripKind[t.tripKind]?.badge}>
-                          {tripKind[t.tripKind]?.label}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                   <p className="mt-3 text-sm text-slate-500">
@@ -115,7 +120,7 @@ export default function TransportesPage() {
                     </div>
                     <div className="mt-1.5 h-2 rounded-full bg-slate-100">
                       <div
-                        className={`h-2 rounded-full ${past && t.status === "PLANEJADA" ? "bg-rose-400" : "bg-teal-600"}`}
+                        className={`h-2 rounded-full ${past && t.phase === "IDA_AGENDADA" ? "bg-rose-400" : "bg-teal-600"}`}
                         style={{ width: `${Math.min(100, (used / t.capacity) * 100)}%` }}
                       />
                     </div>

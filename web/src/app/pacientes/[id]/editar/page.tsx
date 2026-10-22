@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { PatientForm, type PatientValues } from "@/components/PatientForm";
+import { PatientForm, type PatientValues } from "@/features/patients/components/PatientForm";
 import { api } from "@/lib/api";
-import type { Patient } from "@/lib/types";
+import type { Patient } from "@/features/patients/types";
 import { useApi } from "@/lib/useApi";
-import { Button, ErrorBox, PageHeader, Spinner } from "@/lib/ui";
+import { Button, ErrorBox, PageHeader, Spinner } from "@/components/ui";
 
 export default function EditarPacientePage() {
   const params = useParams<{ id: string }>();

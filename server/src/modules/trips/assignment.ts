@@ -1,10 +1,10 @@
-import { db } from "./db";
-import { priorityScore } from "./domain";
+import { db } from "../../lib/prisma";
+import { priorityScore } from "../../lib/domain";
 import {
   buildMessage,
   queueNotification,
   tripMessageContext,
-} from "./notifications";
+} from "../notifications/service";
 
 export const referralInclude = {
   patient: true,
@@ -60,47 +60,8 @@ export async function assignToTrip(referralId: string, tripId: string): Promise<
     message: buildMessage("CONFIRMACAO", tripMessageContext(referral, trip)),
   });
 
-  await reserveReturnSeat(referralId, trip.id);
-
-  const full = await db.referral.findUnique({
-    where: { id: referral.id },
-    include: { ...referralInclude, notifications: { orderBy: { createdAt: "desc" } } },
-  });
-  return {
-    data: { ...full, seat, trip, score: priorityScore(full!) },
-  };
-}
-
-async function reserveReturnSeat(referralId: string, tripId: string) {
-  const trip = await db.trip.findUnique({
-    where: { id: tripId },
-    include: { returnTrip: { include: { seats: true } } },
-  });
-  const ret = trip?.returnTrip;
-  if (!ret || ret.status !== "PLANEJADA") return;
-  const already = await db.seat.findFirst({ where: { tripId: ret.id, referralId } });
-  if (already) return;
-  const used = ret.seats.map((s) => s.number);
-  let freeNumber: number | null = null;
-  for (let n = 1; n <= ret.capacity; n++) {
-    if (!used.includes(n)) {
-      freeNumber = n;
-      break;
-    }
-  }
-  if (freeNumber === null) return;
-
-  await db.seat.create({
-    data: { tripId: ret.id, referralId, number: freeNumber, status: "RESERVADA" },
-  });
-
-  const referral = await db.referral.findUnique({
-    where: { id: referralId },
-    include: { patient: true },
-  });
-  if (!referral) return;
   await queueNotification({
-    referralId,
+    referralId: referral.id,
     kind: "RETORNO_AGENDADO",
     to: referral.patient.phone,
     patientName: referral.patient.name,
@@ -109,12 +70,19 @@ async function reserveReturnSeat(referralId: string, tripId: string) {
       kindLabel: referral.specialty
         ? `${referral.kind.toLowerCase()} de ${referral.specialty}`
         : referral.kind.toLowerCase(),
-      destinationCity: referral.destinationCity,
+      destinationCity: trip.destinationCity,
       destinationUnit: referral.destinationUnit,
-      departureAt: ret.departureAt,
-      originCity: ret.originCity,
-      vehicle: ret.vehicle,
-      driver: ret.driver,
+      originCity: trip.originCity,
+      vehicle: trip.vehicle,
+      driver: trip.driver,
     }),
   });
+
+  const full = await db.referral.findUnique({
+    where: { id: referral.id },
+    include: { ...referralInclude, notifications: { orderBy: { createdAt: "desc" } } },
+  });
+  return {
+    data: { ...full, seat, trip, score: priorityScore(full!) },
+  };
 }

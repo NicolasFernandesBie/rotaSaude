@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { formatDateTime, formatPhone, formatTime, returnDepartureAt } from "@/lib/format";
-import { referralKinds, referralStatus, seatStatus, tripKind, tripStatus, urgency } from "@/lib/status";
+import { formatDateTime, formatPhone, formatTime } from "@/lib/format";
+import { legCities, referralKinds, referralStatus, seatStatus, tripPhase, urgency } from "@/lib/status";
 import { showToast } from "@/lib/toast";
-import type { Suggestion, Trip, TripSuggestions } from "@/lib/types";
+import type { Suggestion, TripSuggestions } from "@/features/referrals/types";
+import type { Trip } from "@/features/trips/types";
 import { useApi } from "@/lib/useApi";
 import {
   Badge,
@@ -17,7 +18,7 @@ import {
   ErrorBox,
   PageHeader,
   Spinner,
-} from "@/lib/ui";
+} from "@/components/ui";
 
 
 const reasonStyles: Record<string, string> = {
@@ -79,13 +80,33 @@ export default function ViagemDetalhePage() {
   const used = seats.length;
   const free = trip.capacity - used;
 
-  async function changeStatus(status: string) {
+  async function changeStatus(status: string, returnAt?: string) {
+    const mensagens: Record<string, string> = {
+      EM_ROTA: "Ida iniciada. Marque a presença dos passageiros.",
+      CONCLUIDA: "Etapa concluída. Comparecimentos registrados.",
+      VOLTA: "Volta iniciada. Marque a presença dos passageiros.",
+    };
     await run(
-      () => api(`/api/trips/${trip.id}/status`, { method: "POST", body: { status } }),
-      status === "EM_ROTA"
-        ? "Viagem iniciada. Passageiros avisados."
-        : "Viagem concluída. Comparecimentos registrados.",
+      () =>
+        api(`/api/trips/${trip.id}/status`, {
+          method: "POST",
+          body: returnAt ? { status, returnAt } : { status },
+        }),
+      mensagens[status],
     );
+  }
+
+  function iniciarVolta() {
+    const horario = window.prompt("Horário da volta (HH:MM):", "16:00");
+    if (!horario) return;
+    const match = horario.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) {
+      setActionError("Horário inválido. Use o formato HH:MM.");
+      return;
+    }
+    const returnAt = new Date();
+    returnAt.setHours(Number(match[1]), Number(match[2]), 0, 0);
+    void changeStatus("VOLTA", returnAt.toISOString());
   }
 
   async function markSeat(seatId: string, status: string) {
@@ -156,44 +177,64 @@ export default function ViagemDetalhePage() {
   return (
     <div>
       <PageHeader
-        title={`${trip.originCity} → ${trip.destinationCity}`}
+        title={`${legCities(trip).from} → ${legCities(trip).to}`}
         subtitle={formatDateTime(trip.departureAt)}
         actions={
           <>
-            <Badge className={tripKind[trip.tripKind]?.badge}>
-              {tripKind[trip.tripKind]?.label}
+            <Badge className={tripPhase[trip.phase]?.badge}>
+              {tripPhase[trip.phase]?.label}
             </Badge>
-            <Badge className={tripStatus[trip.status]?.badge}>{tripStatus[trip.status]?.label}</Badge>
-            {trip.status === "PLANEJADA" ? (
+            {trip.phase === "IDA_AGENDADA" ? (
               <Button
                 disabled={busy || used === 0}
                 onClick={() => {
                   if (
                     window.confirm(
-                      `Iniciar a viagem com ${used} passageiro(s)? O status mudará para "Em viagem".`,
+                      `Iniciar a ida com ${used} passageiro(s)? O status mudará para "Ida em rota".`,
                     )
                   ) {
                     void changeStatus("EM_ROTA");
                   }
                 }}
               >
-                Iniciar viagem
+                Iniciar ida
               </Button>
             ) : null}
-            {trip.status === "EM_ROTA" ? (
+            {trip.phase === "IDA_EM_ROTA" ? (
               <Button
                 disabled={busy}
                 onClick={() => {
                   if (
                     window.confirm(
-                      "Concluir a viagem? Passageiros marcados como presente serão atendidos e os demais registrados como falta.",
+                      "Concluir a ida? Os passageiros presentes seguirão para a volta; os ausentes ficam registrados como falta.",
                     )
                   ) {
                     void changeStatus("CONCLUIDA");
                   }
                 }}
               >
-                Concluir viagem
+                Concluir ida
+              </Button>
+            ) : null}
+            {trip.phase === "IDA_CONCLUIDA" ? (
+              <Button disabled={busy} onClick={iniciarVolta}>
+                Iniciar volta
+              </Button>
+            ) : null}
+            {trip.phase === "VOLTA_EM_ROTA" ? (
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Concluir a volta? Os passageiros presentes serão atendidos e os demais registrados como falta.",
+                    )
+                  ) {
+                    void changeStatus("CONCLUIDA");
+                  }
+                }}
+              >
+                Concluir volta
               </Button>
             ) : null}
           </>
@@ -206,7 +247,7 @@ export default function ViagemDetalhePage() {
         </div>
       ) : null}
 
-      {trip.status === "PLANEJADA" ? (
+      {trip.phase === "IDA_AGENDADA" ? (
         <Card className="mb-4 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -309,27 +350,21 @@ export default function ViagemDetalhePage() {
               <dt className="text-xs text-slate-400">Saída</dt>
               <dd className="font-medium text-slate-800">{formatDateTime(trip.departureAt)}</dd>
             </div>
-            {trip.tripKind === "VOLTA" && trip.parentTripId ? (
+            {trip.returnAt ? (
               <div>
-                <dt className="text-xs text-slate-400">Viagem de ida</dt>
-                <dd>
-                  <Link
-                    href={`/transportes/${trip.parentTripId}`}
-                    className="font-medium text-teal-700 hover:underline"
-                  >
-                    Ver ida correspondente
-                  </Link>
+                <dt className="text-xs text-slate-400">Volta</dt>
+                <dd className="font-medium text-slate-800">{formatTime(trip.returnAt)}</dd>
+              </div>
+            ) : (
+              <div>
+                <dt className="text-xs text-slate-400">Volta</dt>
+                <dd className="text-slate-500">
+                  {trip.phase === "IDA_AGENDADA" || trip.phase === "IDA_EM_ROTA"
+                    ? "Horário informado ao iniciar a volta (mesmo veículo)"
+                    : "Não iniciada"}
                 </dd>
               </div>
-            ) : null}
-            {trip.tripKind === "IDA" ? (
-              <div>
-                <dt className="text-xs text-slate-400">Volta agendada</dt>
-                <dd className="text-slate-600">
-                  Mesma van retorna às {formatTime(returnDepartureAt(trip.departureAt))}
-                </dd>
-              </div>
-            ) : null}
+            )}
             <div>
               <dt className="text-xs text-slate-400">Veículo</dt>
               <dd className="font-medium text-slate-800">{trip.vehicle}</dd>
@@ -360,6 +395,28 @@ export default function ViagemDetalhePage() {
               />
             </div>
           </div>
+
+          {trip.events && trip.events.length > 0 ? (
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Histórico
+              </h3>
+              <ul className="mt-2 space-y-2">
+                {trip.events.map((ev) => (
+                  <li key={ev.id} className="flex items-start gap-2 text-xs">
+                    <Badge className={tripPhase[ev.phase]?.badge}>
+                      {tripPhase[ev.phase]?.label}
+                    </Badge>
+                    <span className="text-slate-500">
+                      {formatDateTime(ev.createdAt)}
+                      {ev.passengerCount > 0 ? ` · ${ev.passengerCount} passageiro(s)` : ""}
+                      {ev.notes ? ` · ${ev.notes}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </Card>
 
         <Card className="min-w-0 p-5 lg:col-span-2">
@@ -367,7 +424,7 @@ export default function ViagemDetalhePage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               Passageiros ({used})
             </h2>
-            {trip.status === "EM_ROTA" ? (
+            {trip.phase === "IDA_EM_ROTA" || trip.phase === "VOLTA_EM_ROTA" ? (
               <span className="text-xs text-slate-500">
                 Marque a presença de cada passageiro ao embarcar
               </span>
@@ -440,7 +497,7 @@ export default function ViagemDetalhePage() {
                           </td>
                           <td className="px-2 py-3">
                             <div className="flex justify-end gap-1.5">
-                              {trip.status === "EM_ROTA" ? (
+                              {trip.phase === "IDA_EM_ROTA" || trip.phase === "VOLTA_EM_ROTA" ? (
                                 <>
                                   <Button
                                     size="sm"
@@ -460,7 +517,7 @@ export default function ViagemDetalhePage() {
                                   </Button>
                                 </>
                               ) : null}
-                              {trip.status === "PLANEJADA" && ref ? (
+                              {trip.phase === "IDA_AGENDADA" && ref ? (
                                 <Button
                                   size="sm"
                                   variant="danger"

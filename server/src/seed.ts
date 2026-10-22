@@ -1,11 +1,10 @@
-import { db } from "./db";
+import { db } from "./lib/prisma";
 import {
   buildMessage,
   tripMessageContext,
   queueNotification,
   DEFAULT_SETTINGS,
-} from "./notifications";
-import { returnDepartureAt } from "./trips";
+} from "./modules/notifications/service";
 
 async function seedSettings() {
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
@@ -143,7 +142,7 @@ async function main() {
   const day = 86_400_000;
   const now = Date.now();
 
-  console.log("Criando 6 viagens de ida + 6 de volta...");
+  console.log("Criando 6 viagens (com volta embutida)...");
   const cidades = ["Bauru", "Botucatu", "São Carlos", "Marília", "Jaú", "Ourinhos"];
   const veiculos = [
     { vehicle: "Van TFD-01 (WEG)", driver: "Antônio Carlos Ferreira", phone: "14999110022" },
@@ -154,12 +153,7 @@ async function main() {
     { vehicle: "Van TFD-06", driver: "Roberto Camargo", phone: "14999660033" },
   ];
 
-  const pairs: Array<{
-    dest: string;
-    outbound: { id: string };
-    returnTrip: { id: string };
-    capacity: number;
-  }> = [];
+  const trips: Array<{ id: string; dest: string; capacity: number; phase: string }> = [];
 
   for (let i = 0; i < cidades.length; i++) {
     const dest = cidades[i];
@@ -167,8 +161,10 @@ async function main() {
     const offsetDays = i < 2 ? i : i + 1;
     const departureAt = new Date(now + offsetDays * day + 6 * 3_600_000);
     const capacity = i % 2 === 0 ? 8 : 6;
+    const phase: "IDA_AGENDADA" | "IDA_EM_ROTA" | "IDA_CONCLUIDA" =
+      i === 0 ? "IDA_CONCLUIDA" : i === 1 ? "IDA_EM_ROTA" : "IDA_AGENDADA";
 
-    const outbound = await db.trip.create({
+    const trip = await db.trip.create({
       data: {
         departureAt,
         originCity: CIDADE_ORIGEM,
@@ -177,27 +173,45 @@ async function main() {
         driver: v.driver,
         phone: v.phone,
         capacity,
-        status: "PLANEJADA",
-        tripKind: "IDA",
-        notes: `TFD semanal - ${dest}`,
+        status: phase === "IDA_CONCLUIDA" ? "EM_ROTA" : "PLANEJADA",
+        phase,
+        notes: `TFD semanal - ${dest} (ida e volta no mesmo veículo)`,
+        events: {
+          create: [
+            {
+              phase: "IDA_AGENDADA",
+              originCity: CIDADE_ORIGEM,
+              destinationCity: dest,
+              departureAt,
+              notes: "Viagem agendada",
+            },
+            ...(phase !== "IDA_AGENDADA"
+              ? [
+                  {
+                    phase: "IDA_EM_ROTA",
+                    originCity: CIDADE_ORIGEM,
+                    destinationCity: dest,
+                    departureAt,
+                    notes: "Ida iniciada",
+                  },
+                ]
+              : []),
+            ...(phase === "IDA_CONCLUIDA"
+              ? [
+                  {
+                    phase: "IDA_CONCLUIDA",
+                    originCity: CIDADE_ORIGEM,
+                    destinationCity: dest,
+                    departureAt,
+                    notes: "Ida concluida no destino",
+                  },
+                ]
+              : []),
+          ],
+        },
       },
     });
-    const returnTrip = await db.trip.create({
-      data: {
-        departureAt: returnDepartureAt(departureAt),
-        originCity: dest,
-        destinationCity: CIDADE_ORIGEM,
-        vehicle: v.vehicle,
-        driver: v.driver,
-        phone: v.phone,
-        capacity,
-        status: "PLANEJADA",
-        tripKind: "VOLTA",
-        parentTripId: outbound.id,
-        notes: `Retorno da viagem de ida (${CIDADE_ORIGEM} -> ${dest})`,
-      },
-    });
-    pairs.push({ dest, outbound, returnTrip, capacity });
+    trips.push({ id: trip.id, dest, capacity, phase });
   }
 
   console.log("Criando encaminhamentos...");
@@ -209,12 +223,12 @@ async function main() {
   }> = [];
 
   const total = 30;
-  const idaAlocados: Record<string, string[]> = {};
-  for (const pair of pairs) idaAlocados[pair.outbound.id] = [];
+  const alocadosPorViagem: Record<string, string[]> = {};
+  for (const t of trips) alocadosPorViagem[t.id] = [];
 
   for (let i = 0; i < total; i++) {
-    const pair = pairs[i % pairs.length];
-    const unit = unidades[pair.dest][i % unidades[pair.dest].length];
+    const trip = trips[i % trips.length];
+    const unit = unidades[trip.dest][i % unidades[trip.dest].length];
     const specialty = especialidades[i % especialidades.length];
     const urgency = urgencias[i % urgencias.length];
     const kind = i % 3 === 0 ? "CONSULTA" : i % 3 === 1 ? "EXAME" : "TRATAMENTO";
@@ -224,7 +238,7 @@ async function main() {
         patientId: p[i].id,
         kind,
         specialty,
-        destinationCity: pair.dest,
+        destinationCity: trip.dest,
         destinationUnit: unit,
         requestedBy: `Dr(a). ${pacientes[i].post}`,
         requestedAt: new Date(now - (3 + (i % 20)) * day),
@@ -238,47 +252,33 @@ async function main() {
     created.push({ id: r.id, status: r.status, dest: r.destinationCity, specialty: r.specialty });
   }
 
-  console.log("Alocando assentos (ida + volta)...");
+  console.log("Alocando assentos...");
   const usados = new Set<string>();
-  for (const pair of pairs) {
-    let numeroIda = 1;
-    let numeroVolta = 1;
+  for (const trip of trips) {
+    let numero = 1;
     for (const r of created) {
       if (usados.has(r.id)) continue;
-      if (r.dest !== pair.dest) continue;
-      if (idaAlocados[pair.outbound.id].length >= pair.capacity) continue;
+      if (r.dest !== trip.dest) continue;
+      if (alocadosPorViagem[trip.id].length >= Math.min(4, trip.capacity)) continue;
+
+      let seatStatus = "RESERVADA";
+      let refStatus = "CONFIRMADO";
+      if (trip.phase === "IDA_CONCLUIDA") {
+        seatStatus = alocadosPorViagem[trip.id].length === 1 ? "FALTOU" : "PRESENTE";
+        refStatus = seatStatus === "FALTOU" ? "FALTOU" : "ATENDIDO";
+      } else if (trip.phase === "IDA_EM_ROTA") {
+        seatStatus = "EMBARCADO";
+        refStatus = "EM_VIAGEM";
+      }
+
       await db.seat.create({
-        data: { tripId: pair.outbound.id, referralId: r.id, number: numeroIda++, status: "RESERVADA" },
+        data: { tripId: trip.id, referralId: r.id, number: numero++, status: seatStatus },
       });
-      await db.seat.create({
-        data: { tripId: pair.returnTrip.id, referralId: r.id, number: numeroVolta++, status: "RESERVADA" },
-      });
-      await db.referral.update({ where: { id: r.id }, data: { status: "CONFIRMADO" } });
-      r.status = "CONFIRMADO";
-      idaAlocados[pair.outbound.id].push(r.id);
+      await db.referral.update({ where: { id: r.id }, data: { status: refStatus } });
+      r.status = refStatus;
+      alocadosPorViagem[trip.id].push(r.id);
       usados.add(r.id);
-      if (idaAlocados[pair.outbound.id].length >= Math.min(3, pair.capacity)) break;
     }
-  }
-
-  const confirmados = created.filter((r) => r.status === "CONFIRMADO");
-  for (const r of confirmados) {
-    await db.referral.update({ where: { id: r.id }, data: { status: "CONFIRMADO" } });
-  }
-
-  console.log("Encerrando viagens passadas (histórico)...");
-  const [atendido] = await db.referral.findMany({
-    where: { status: "CONFIRMADO" },
-    take: 1,
-  });
-  if (atendido) {
-    await db.referral.update({ where: { id: atendido.id }, data: { status: "ATENDIDO" } });
-  }
-  const faltouCandidato = await db.referral.findFirst({
-    where: { status: "CONFIRMADO", id: { not: atendido?.id } },
-  });
-  if (faltouCandidato) {
-    await db.referral.update({ where: { id: faltouCandidato.id }, data: { status: "FALTOU" } });
   }
 
   console.log("Gerando histórico de notificações...");
@@ -322,13 +322,12 @@ async function main() {
     });
   };
 
-  for (const pair of pairs) {
-    for (const referralId of idaAlocados[pair.outbound.id]) {
-      await notifyHistory(referralId, "CONFIRMACAO", pair.outbound.id, "ENVIADA", 2 * day);
-      await notifyHistory(referralId, "RETORNO_AGENDADO", pair.returnTrip.id, "ENVIADA", 2 * day);
+  for (const trip of trips) {
+    for (const referralId of alocadosPorViagem[trip.id]) {
+      await notifyHistory(referralId, "CONFIRMACAO", trip.id, "ENVIADA", 2 * day);
+      await notifyHistory(referralId, "RETORNO_AGENDADO", trip.id, "ENVIADA", 2 * day);
     }
   }
-  if (atendido) await notifyHistory(atendido.id, "RETORNO", null, "ENVIADA", 1 * day);
   const semTelefone = created[total - 1];
   await notifyHistory(semTelefone.id, "CONFIRMACAO", null, "FALHA", 1 * day, "Numero de telefone invalido (DDD + numero)");
 
@@ -336,8 +335,7 @@ async function main() {
     patients: await db.patient.count(),
     referrals: await db.referral.count(),
     trips: await db.trip.count(),
-    idas: await db.trip.count({ where: { tripKind: "IDA" } }),
-    voltas: await db.trip.count({ where: { tripKind: "VOLTA" } }),
+    events: await db.tripEvent.count(),
     seats: await db.seat.count(),
     notifications: await db.notification.count(),
   };

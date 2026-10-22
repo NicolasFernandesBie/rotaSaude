@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Patient } from "@/lib/types";
-import { Button, Card, Field, inputClass } from "@/lib/ui";
+import type { Patient } from "@/features/patients/types";
+import { Button, Card, Field, inputClass } from "@/components/ui";
 
 export type PatientValues = {
   name: string;

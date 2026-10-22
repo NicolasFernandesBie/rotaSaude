@@ -41,10 +41,3 @@ export function toDatetimeLocal(iso?: string | null): string {
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 16);
 }
-
-export const RETURN_OFFSET_HOURS = 6;
-
-export function returnDepartureAt(idaDepartureAt: string | Date): Date {
-  const d = typeof idaDepartureAt === "string" ? new Date(idaDepartureAt) : idaDepartureAt;
-  return new Date(d.getTime() + RETURN_OFFSET_HOURS * 3_600_000);
-}

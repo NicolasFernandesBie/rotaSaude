@@ -3,10 +3,11 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { CIDADES, CIDADE_DESTINO_PADRAO } from "@/lib/cities";
+import { CIDADES, CIDADE_DESTINO_PADRAO } from "@/config/cities";
 import { formatPhone } from "@/lib/format";
 import { showToast } from "@/lib/toast";
-import type { Patient, Referral } from "@/lib/types";
+import type { Patient } from "@/features/patients/types";
+import type { Referral } from "@/features/referrals/types";
 import {
   Button,
   Card,
@@ -15,7 +16,7 @@ import {
   PageHeader,
   Spinner,
   inputClass,
-} from "@/lib/ui";
+} from "@/components/ui";
 
 const cidades = CIDADES;
 const especialidades = [

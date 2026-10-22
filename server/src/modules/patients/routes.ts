@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { db } from "../db";
-import { MOBILITIES } from "../domain";
+import { db } from "../../lib/prisma";
+import { MOBILITIES } from "../../lib/domain";
 
 export async function patientRoutes(app: FastifyInstance) {
   app.get("/api/patients", async (req) => {

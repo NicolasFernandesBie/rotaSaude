@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { Spinner } from "@/lib/ui";
+import { Spinner } from "@/components/ui";
 
 function Redirect() {
   const router = useRouter();

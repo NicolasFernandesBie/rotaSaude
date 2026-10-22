@@ -11,7 +11,7 @@ import {
   PageHeader,
   Spinner,
   inputClass,
-} from "@/lib/ui";
+} from "@/components/ui";
 
 type Settings = { channel: string; reminderHours: number };
 

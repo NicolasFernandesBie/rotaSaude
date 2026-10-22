@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { AllocateModal } from "@/components/AllocateModal";
+import { AllocateModal } from "@/features/referrals/components/AllocateModal";
 import { darVaga } from "@/lib/actions";
 import { api } from "@/lib/api";
 import { daysSince, formatDate, formatDateTime, formatPhone } from "@/lib/format";
@@ -15,7 +15,7 @@ import {
   urgency,
 } from "@/lib/status";
 import { showToast } from "@/lib/toast";
-import type { Referral } from "@/lib/types";
+import type { Referral } from "@/features/referrals/types";
 import { useApi } from "@/lib/useApi";
 import {
   Badge,
@@ -24,7 +24,7 @@ import {
   ErrorBox,
   PageHeader,
   Spinner,
-} from "@/lib/ui";
+} from "@/components/ui";
 
 export default function EncaminhamentoDetalhePage() {
   const params = useParams<{ id: string }>();

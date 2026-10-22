@@ -49,7 +49,7 @@ model Referral {
 }
 
 model Trip {
-  id              String   @id @default(cuid())
+  id              String      @id @default(cuid())
   departureAt     DateTime
   originCity      String
   destinationCity String
@@ -57,18 +57,33 @@ model Trip {
   driver          String
   phone           String?
   capacity        Int
-  status          String   @default("PLANEJADA")
-  tripKind        String   @default("IDA")
-  parentTripId    String?  @unique
-  parentTrip      Trip?    @relation("TripPair", fields: [parentTripId], references: [id], onDelete: SetNull)
-  returnTrip      Trip?    @relation("TripPair")
+  status          String      @default("PLANEJADA")
+  phase           String      @default("IDA_AGENDADA")
+  returnAt        DateTime?
   notes           String?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime    @default(now())
   seats           Seat[]
+  events          TripEvent[]
 
   @@index([departureAt])
-  @@index([parentTripId])
+  @@index([phase])
   @@map("trips")
+}
+
+model TripEvent {
+  id              String   @id @default(cuid())
+  tripId          String
+  trip            Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  phase           String
+  originCity      String
+  destinationCity String
+  departureAt     DateTime?
+  passengerCount  Int      @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([tripId, createdAt])
+  @@map("trip_events")
 }
 
 model Seat {

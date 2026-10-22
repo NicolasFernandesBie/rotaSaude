@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db } from "./lib/prisma";
 
 async function main() {
   console.log("Removendo dados operacionais e clientes...");
